@@ -9,4 +9,4 @@
 * /roomcreate <name> - создать комнату
 * /roomconnect <id> - зайти в комнату по айди
 * /roommembers - список участников комнаты
-* /roomleave - выйди из комнаты
+* /roomleave - выйти из комнаты
