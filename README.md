@@ -6,7 +6,7 @@
 
 * /quit - отсоединиться от сервера
 * /roomlist - список комнат на сервере
-* /roomcreate <name> - создать комнату
-* /roomconnect <id> - зайти в комнату по айди
+* /roomcreate name - создать комнату с именем name
+* /roomconnect id - зайти в комнату с айди id
 * /roommembers - список участников комнаты
 * /roomleave - выйти из комнаты
