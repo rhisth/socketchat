@@ -43,7 +43,7 @@ def input_name():
 
 def main():
     clear()
-    name = input()
+    name = input("Введите никнейм: ")
     client = socket.socket()
     try:
         client.connect((hostname, port))
