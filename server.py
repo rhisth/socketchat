@@ -30,6 +30,24 @@ class Server:
         self.rooms = []
         self.lastroomid = 0
 
+    def get_room(self, id):
+        for room in self.rooms:
+            if id == room.id:
+                return room
+
+    def create_room(self, name):
+        self.lastroomid += 1
+        room = Room(self.lastroomid, name=name)
+        self.rooms.append(room)
+        return room
+
+    def delete_room(self, id):
+        room = self.get_room(id)
+        room.broadcast("Комната была удалена сервером.")
+        for client in room.clients:
+            client.room = None
+        self.rooms.remove(room)
+
     def broadcast(self, message):
         for client in self.clients:
             client.send(message)
@@ -75,7 +93,7 @@ class Client:
             if self.server.rooms:
                 message = "Список комнат:"
                 for room in self.server.rooms:
-                    message += f'\nНазвание: "{room.name}". Айди: {room.id}'
+                    message += f'\nНазвание: "{room.name}". Айди: {room.id}. Участники: {len(room.clients)}.'
                 self.send(message)
             else:
                 self.send("На сервере нет каких-либо комнат.")
@@ -85,31 +103,32 @@ class Client:
             except ValueError:
                 self.send("Айди должен быть в формате числа.")
             else:
-                if self.room:
-                    self.leave()
-                for room in self.server.rooms:
-                    if id == room.id:
-                        room.clients.append(self)
-                        self.room = room
-                        self.room.broadcast(f"{self.nickname} присоединился к чату.")
-                        break
+                self.join(id)
         elif data == "/roomleave":
-            if self.room:
-                self.leave()
-            else:
+            if not self.leave():
                 self.send("Вы не находитесь в какой-либо комнате.")
         elif data.startswith("/roomcreate "):
-            self.server.lastroomid += 1
-            room = Room(self.server.lastroomid, name=data.split(" ", 1)[1])
-            self.server.rooms.append(room)
+            id = self.server.create_room(data.split(" ", 1)[1]).id
+            self.join(id)
         elif data == "/roommembers":
             if self.room:
-                message = "Список клиентов в комнате:"
+                message = "Список участников комнаты:"
                 for client in self.room.clients:
                     message += f'\nИмя: "{client.nickname}"'
                 self.send(message)
             else:
                 self.send("Вы не находитесь в какой-либо комнате.")
+        elif data.startswith("/roomdelete "):
+            try:
+                id = int(data.split(" ", 1)[1])
+            except ValueError:
+                self.send("Айди должен быть в формате числа.")
+            else:
+                room = self.server.get_room(id)
+                if room.clients:
+                    self.send("Нельзя удалить комнату, где находятся люди.")
+                else:
+                    self.server.delete_room(id)
         else:
             return False
         return True
@@ -140,29 +159,42 @@ class Client:
                 self.disconnect()
                 return
             if not self.command(data):
-                if self.room:
-                    self.say(f"{self.nickname}: {data}")
+                self.say(f"{self.nickname}: {data}")
 
     def say(self, message):
-        for client in self.room.clients:
-            if self.connection != client.connection:
-                client.send(message)
+        if self.room:
+            for client in self.room.clients:
+                if self.connection != client.connection:
+                    client.send(message)
+        else:
+            return False
+        return True
 
     def send(self, data):
         self.connection.send(data.encode())
 
+    def join(self, id):
+        self.leave()
+        room = self.server.get_room(id)
+        room.clients.append(self)
+        self.room = room
+        self.room.broadcast(f"{self.nickname} присоединился к чату.")
+
     def disconnect(self):
         self.connection.close()
         self.server.log(f"Клиент {self.address} отключился. Никнейм: {self.nickname}.")
-        if self.room:
-            self.leave()
+        self.leave()
         if self in self.server.clients:
             self.server.clients.remove(self)
 
     def leave(self):
-        self.room.clients.remove(self)
-        self.room.broadcast(f"{self.nickname} вышел из чата.")
-        self.room = None
+        if self.room:
+            self.room.clients.remove(self)
+            self.room.broadcast(f"{self.nickname} вышел из чата.")
+            self.room = None
+        else:
+            return False
+        return True
 
     def start(self):
         self.thread = threading.Thread(target=self.listen, daemon=True)
