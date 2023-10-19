@@ -166,9 +166,6 @@ class Client:
             for client in self.room.clients:
                 if self.connection != client.connection:
                     client.send(message)
-        else:
-            return False
-        return True
 
     def send(self, data):
         self.connection.send(data.encode())
@@ -192,9 +189,8 @@ class Client:
             self.room.clients.remove(self)
             self.room.broadcast(f"{self.nickname} вышел из чата.")
             self.room = None
-        else:
-            return False
-        return True
+            return True
+        return False
 
     def start(self):
         self.thread = threading.Thread(target=self.listen, daemon=True)
